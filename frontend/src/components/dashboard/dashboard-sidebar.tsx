@@ -135,12 +135,22 @@ function getInitialValues(moduleKey: SimulationModuleKey, queryMode: QueryMode):
 type DashboardSidebarProps = {
   isLoading: boolean;
   errorMessage: string | null;
+  selectedModule: SimulationModuleKey;
+  selectedQueryMode: QueryMode;
+  onModuleChange: (module: SimulationModuleKey) => void;
+  onQueryModeChange: (queryMode: QueryMode) => void;
   onRunSimulation: (formValues: SimulationFormValues) => void;
 };
 
-export function DashboardSidebar({ isLoading, errorMessage, onRunSimulation }: DashboardSidebarProps) {
-  const [selectedModule, setSelectedModule] = useState<SimulationModuleKey>('thermo-buckling');
-  const [selectedQueryMode, setSelectedQueryMode] = useState<QueryMode>('Table');
+export function DashboardSidebar({
+  isLoading,
+  errorMessage,
+  selectedModule,
+  selectedQueryMode,
+  onModuleChange,
+  onQueryModeChange,
+  onRunSimulation,
+}: DashboardSidebarProps) {
   const [fieldValues, setFieldValues] = useState<FieldValues>(() => getInitialValues("thermo-buckling", "Table"));
   const selectedModuleConfig = moduleByKey[selectedModule];
   const selectedEntityFields = selectedModuleConfig.parameters as readonly ParameterField[];
@@ -148,12 +158,12 @@ export function DashboardSidebar({ isLoading, errorMessage, onRunSimulation }: D
 
 
   const handleModule = (module: SimulationModuleKey) => {
-    setSelectedModule(module)
+    onModuleChange(module)
     setFieldValues(getInitialValues(module, selectedQueryMode))
   }
 
   const handleQueryMode = (queryMode: QueryMode) => {
-    setSelectedQueryMode(queryMode)
+    onQueryModeChange(queryMode)
     setFieldValues(getInitialValues(selectedModule, queryMode))
   }
 

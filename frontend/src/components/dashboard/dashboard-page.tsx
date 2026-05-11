@@ -7,12 +7,40 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { StressLineChart } from "@/components/charts/line-chart";
 import { OutputBarChart } from "@/components/charts/bar-chart";
 import { DashboardTable } from "./dashboard-table";
-import { runSimulation, type SimulationFormValues, type SimulationResult, } from "@/lib/simulation";
+import {
+  runSimulation,
+  type QueryMode,
+  type SavedSimulationResult,
+  type SimulationFormValues,
+  type SimulationModuleKey,
+} from "@/lib/simulation";
+
+const maxSavedSimulations = 6;
+
+type SimulationHistory = Record<SimulationModuleKey, Record<QueryMode, SavedSimulationResult[]>>;
+
+const emptySimulationHistory: SimulationHistory = {
+  "thermo-buckling": {
+    Table: [],
+    "Plot Data": [],
+  },
+  "thermo-fatigue": {
+    Table: [],
+    "Plot Data": [],
+  },
+  buckling: {
+    Table: [],
+    "Plot Data": [],
+  },
+};
 
 export function DashboardPage() {
-  const [simulationResult, setSimulationResult] = useState<SimulationResult | null>(null);
+  const [selectedModule, setSelectedModule] = useState<SimulationModuleKey>("thermo-buckling");
+  const [selectedQueryMode, setSelectedQueryMode] = useState<QueryMode>("Table");
+  const [simulationHistory, setSimulationHistory] = useState<SimulationHistory>(emptySimulationHistory);
   const [isSimulationLoading, setIsSimulationLoading] = useState(false);
   const [simulationError, setSimulationError] = useState<string | null>(null);
+  const selectedHistory = simulationHistory[selectedModule][selectedQueryMode];
 
   const handleRunSimulation = async (formValues: SimulationFormValues) => {
     setIsSimulationLoading(true);
@@ -20,8 +48,22 @@ export function DashboardPage() {
 
     try {
       const result = await runSimulation(formValues);
+      const savedResult: SavedSimulationResult = {
+        ...result,
+        id: crypto.randomUUID(),
+        createdAt: new Date().toISOString(),
+      };
 
-      setSimulationResult(result);
+      setSimulationHistory((currentHistory) => ({
+        ...currentHistory,
+        [result.module]: {
+          ...currentHistory[result.module],
+          [result.queryMode]: [
+            savedResult,
+            ...currentHistory[result.module][result.queryMode],
+          ].slice(0, maxSavedSimulations),
+        },
+      }));
     } catch (error) {
       setSimulationError(error instanceof Error ? error.message : "Erro ao executar simulacao");
     } finally {
@@ -35,6 +77,10 @@ export function DashboardPage() {
         <DashboardSidebar
           errorMessage={simulationError}
           isLoading={isSimulationLoading}
+          selectedModule={selectedModule}
+          selectedQueryMode={selectedQueryMode}
+          onModuleChange={setSelectedModule}
+          onQueryModeChange={setSelectedQueryMode}
           onRunSimulation={handleRunSimulation}
         />
 
@@ -131,7 +177,11 @@ export function DashboardPage() {
           </div>
 
           <div className="mt-10 grid">
-            <DashboardTable result={simulationResult} />
+            <DashboardTable
+              results={selectedHistory}
+              selectedModule={selectedModule}
+              selectedQueryMode={selectedQueryMode}
+            />
           </div>
 
         </section>

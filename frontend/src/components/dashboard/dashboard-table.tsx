@@ -1,15 +1,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-
-type SimulationResult = {
-  module: string;
-  queryMode: string;
-  payload: unknown;
-  data: unknown;
-};
+import type { QueryMode, SavedSimulationResult, SimulationModuleKey } from "@/lib/simulation";
 
 type DashboardTableProps = {
-  result: SimulationResult | null;
+  results: SavedSimulationResult[];
+  selectedModule: SimulationModuleKey;
+  selectedQueryMode: QueryMode;
 };
 
 type TableRowData = Record<string, unknown>;
@@ -80,23 +76,38 @@ function formatValue(value: unknown) {
   return JSON.stringify(value);
 }
 
-export function DashboardTable({ result }: DashboardTableProps) {
-  const rows = result ? getRows(result.data) : [];
+export function DashboardTable({
+  results,
+  selectedModule,
+  selectedQueryMode,
+}: DashboardTableProps) {
+  const rows: TableRowData[] = results.flatMap((result, resultIndex) =>
+    getRows(result.data).map((row, rowIndex) => ({
+      run: `Run ${results.length - resultIndex}`,
+      row: rowIndex + 1,
+      createdAt: new Date(result.createdAt).toLocaleTimeString("pt-BR", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      }),
+      ...row,
+    })),
+  );
   const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
 
   return (
     <Card className="border-slate-200 bg-white shadow-sm">
       <CardHeader>
         <CardTitle className="text-base font-semibold text-slate-800">
-          Returned Data
+          Returned Data ({results.length}/6 runs)
         </CardTitle>
       </CardHeader>
 
       <CardContent>
-        {result ? (
+        {results.length > 0 ? (
           <div className="space-y-4">
             <p className="text-sm text-slate-500">
-              {result.module} - {result.queryMode}
+              {selectedModule} - {selectedQueryMode}
             </p>
 
             {rows.length > 0 ? (
@@ -127,13 +138,13 @@ export function DashboardTable({ result }: DashboardTableProps) {
               </div>
             ) : (
               <pre className="overflow-x-auto rounded-md bg-slate-950 p-4 text-xs text-slate-100">
-                {JSON.stringify(result.data, null, 2)}
+                {JSON.stringify(results.map((result) => result.data), null, 2)}
               </pre>
             )}
           </div>
         ) : (
           <p className="text-sm text-slate-500">
-            Run a simulation to show backend results here.
+            Run a simulation to save results for {selectedModule} - {selectedQueryMode}.
           </p>
         )}
       </CardContent>

@@ -19,6 +19,11 @@ export type SimulationResult = {
   data: unknown;
 };
 
+export type SavedSimulationResult = SimulationResult & {
+  id: string;
+  createdAt: string;
+};
+
 const entityFields = {
   "thermo-buckling": [
     "di",
