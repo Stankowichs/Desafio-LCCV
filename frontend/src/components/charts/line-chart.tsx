@@ -1,6 +1,7 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import type { LineChartModel } from "@/lib/chart.config"
 import {
   CartesianGrid,
   Line,
@@ -11,60 +12,63 @@ import {
   YAxis,
 } from "recharts"
 
-const stressData = [
-  { temperature: 20, axialStress: 118, allowableStress: 450 },
-  { temperature: 100, axialStress: 154, allowableStress: 438 },
-  { temperature: 200, axialStress: 203, allowableStress: 420 },
-  { temperature: 300, axialStress: 249, allowableStress: 390 },
-  { temperature: 400, axialStress: 288, allowableStress: 340 },
-  { temperature: 500, axialStress: 312, allowableStress: 295 },
-  { temperature: 600, axialStress: 266, allowableStress: 230 },
-]
+const lineColors = ["#0D5C63", "#4A5568", "#2563EB", "#D97706", "#7C3AED", "#059669"];
 
-export function StressLineChart() {
+type StressLineChartProps = {
+  model: LineChartModel;
+};
+
+export function StressLineChart({ model }: StressLineChartProps) {
   return (
     <Card className="border-slate-200 bg-white shadow-sm">
       <CardHeader>
         <CardTitle className="text-base font-semibold text-slate-800">
-          Stress Distribution
+          {model.title}
         </CardTitle>
+        <p className="text-sm text-slate-500">
+          {model.subtitle}
+        </p>
       </CardHeader>
 
       <CardContent>
-        <div className="h-[320px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={stressData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-              <XAxis
-                dataKey="temperature"
-                tickLine={false}
-                axisLine={false}
-                tick={{ fill: "#64748B", fontSize: 12 }}
-              />
-              <YAxis
-                tickLine={false}
-                axisLine={false}
-                tick={{ fill: "#64748B", fontSize: 12 }}
-              />
-              <Tooltip />
-              <Line
-                type="monotone"
-                dataKey="axialStress"
-                stroke="#0D5C63"
-                strokeWidth={2}
-                dot={false}
-              />
-              <Line
-                type="monotone"
-                dataKey="allowableStress"
-                stroke="#4A5568"
-                strokeWidth={2}
-                strokeDasharray="5 5"
-                dot={false}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
+        {model.data.length > 0 && model.seriesKeys.length > 0 ? (
+          <div className="h-[320px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={model.data}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+                <XAxis
+                  dataKey="x"
+                  name={`${model.xAxis.label} (${model.xAxis.unit})`}
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{ fill: "#64748B", fontSize: 12 }}
+                />
+                <YAxis
+                  name={`${model.yAxis.label} (${model.yAxis.unit})`}
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{ fill: "#64748B", fontSize: 12 }}
+                />
+                <Tooltip />
+                {model.seriesKeys.map((seriesKey, index) => (
+                  <Line
+                    key={seriesKey}
+                    type="monotone"
+                    dataKey={seriesKey}
+                    stroke={lineColors[index % lineColors.length]}
+                    strokeWidth={2}
+                    connectNulls
+                    dot={{ r: 3 }}
+                  />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <div className="flex h-[320px] items-center justify-center rounded-md border border-dashed border-slate-300 bg-slate-50 px-6 text-center text-sm text-slate-500">
+            {model.emptyMessage}
+          </div>
+        )}
       </CardContent>
     </Card>
   )

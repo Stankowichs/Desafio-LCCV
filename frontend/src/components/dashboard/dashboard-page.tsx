@@ -1,18 +1,18 @@
 "use client"
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { DashboardSidebar } from "./dashboard-sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { StressLineChart } from "@/components/charts/line-chart";
 import { OutputBarChart } from "@/components/charts/bar-chart";
 import { DashboardTable } from "./dashboard-table";
-import {
-  runSimulation,
+import { buildBarChartModel, buildLineChartModel } from "@/lib/chart.config";
+import { runSimulation,
   type QueryMode,
   type SavedSimulationResult,
   type SimulationFormValues,
-  type SimulationModuleKey,
+  type SimulationModuleKey
 } from "@/lib/simulation";
 
 const maxSavedSimulations = 6;
@@ -41,6 +41,15 @@ export function DashboardPage() {
   const [isSimulationLoading, setIsSimulationLoading] = useState(false);
   const [simulationError, setSimulationError] = useState<string | null>(null);
   const selectedHistory = simulationHistory[selectedModule][selectedQueryMode];
+  const lineChartModel = useMemo(
+    () => buildLineChartModel(selectedHistory, selectedModule, selectedQueryMode),
+    [selectedHistory, selectedModule, selectedQueryMode],
+  );
+  const barChartModel = useMemo(
+    () => buildBarChartModel(selectedHistory, selectedModule, selectedQueryMode),
+    [selectedHistory, selectedModule, selectedQueryMode],
+  );
+  const latestOutput = barChartModel.data[0];
 
   const handleRunSimulation = async (formValues: SimulationFormValues) => {
     setIsSimulationLoading(true);
@@ -100,22 +109,22 @@ export function DashboardPage() {
             <Card className="mb-6 w-full max-w-sm border-slate-200 bg-white shadow-sm">
               <CardHeader>
                 <CardTitle className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Max Stress
+                  Saved runs
                 </CardTitle>
               </CardHeader>
 
               <CardContent>
                 <div className="flex items-end gap-2">
                   <span className="text-3xl font-bold leading-none text-slate-900">
-                    342.5
+                    {selectedHistory.length}
                   </span>
                   <span className="pb-1 text-sm font-medium text-slate-500">
-                    MPa
+                    / {maxSavedSimulations}
                   </span>
                 </div>
 
-                <p className="mt-3 text-xs font-medium text-red-600">
-                  92% of yield strength
+                <p className="mt-3 text-xs font-medium text-slate-500">
+                  {selectedModule} - {selectedQueryMode}
                 </p>
               </CardContent>
             </Card>
@@ -123,22 +132,22 @@ export function DashboardPage() {
             <Card className="mb-6 w-full max-w-sm border-slate-200 bg-white shadow-sm">
               <CardHeader>
                 <CardTitle className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Max Stress
+                  Chart points
                 </CardTitle>
               </CardHeader>
 
               <CardContent>
                 <div className="flex items-end gap-2">
                   <span className="text-3xl font-bold leading-none text-slate-900">
-                    342.5
+                    {lineChartModel.data.length}
                   </span>
                   <span className="pb-1 text-sm font-medium text-slate-500">
-                    MPa
+                    pts
                   </span>
                 </div>
 
-                <p className="mt-3 text-xs font-medium text-red-600">
-                  92% of yield strength
+                <p className="mt-3 text-xs font-medium text-slate-500">
+                  {lineChartModel.yAxis.label} vs {lineChartModel.xAxis.label}
                 </p>
               </CardContent>
             </Card>
@@ -147,22 +156,22 @@ export function DashboardPage() {
             <Card className="mb-6 w-full max-w-sm border-slate-200 bg-white shadow-sm">
               <CardHeader>
                 <CardTitle className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Max Stress
+                  Latest output
                 </CardTitle>
               </CardHeader>
 
               <CardContent>
                 <div className="flex items-end gap-2">
                   <span className="text-3xl font-bold leading-none text-slate-900">
-                    342.5
+                    {latestOutput ? latestOutput.value.toFixed(2) : "-"}
                   </span>
                   <span className="pb-1 text-sm font-medium text-slate-500">
-                    MPa
+                    {latestOutput?.unit ?? ""}
                   </span>
                 </div>
 
-                <p className="mt-3 text-xs font-medium text-red-600">
-                  92% of yield strength
+                <p className="mt-3 text-xs font-medium text-slate-500">
+                  {latestOutput?.output ?? "Run a simulation to show output"}
                 </p>
               </CardContent>
             </Card>
@@ -172,8 +181,8 @@ export function DashboardPage() {
           </div>
 
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.4fr_1fr]">
-            <StressLineChart />
-            <OutputBarChart />
+            <StressLineChart model={lineChartModel} />
+            <OutputBarChart model={barChartModel} />
           </div>
 
           <div className="mt-10 grid">

@@ -116,6 +116,11 @@ type ParameterField = {
   step?: number;
 };
 
+type QueryFieldGroup = {
+  title: string;
+  fields: readonly ParameterField[];
+};
+
 const queryModes = ["Table", "Plot Data"] as const;
 
 function getInitialValues(moduleKey: SimulationModuleKey, queryMode: QueryMode): FieldValues {
@@ -130,6 +135,45 @@ function getInitialValues(moduleKey: SimulationModuleKey, queryMode: QueryMode):
   }
 
   return values;
+}
+
+function getQueryFieldGroups(
+  moduleKey: SimulationModuleKey,
+  queryMode: QueryMode,
+): QueryFieldGroup[] {
+  const fields = queryModeFields[moduleKey][queryMode] as readonly ParameterField[];
+
+  if (queryMode === "Table") {
+    return [
+      {
+        title: "XY Pair",
+        fields,
+      },
+    ];
+  }
+
+  return [
+    {
+      title: getPlotDataGroupTitle(moduleKey, "x"),
+      fields: fields.filter((field) => field.id.endsWith("_start") || field.id.endsWith("_stop") || field.id.endsWith("_step")).slice(0, 3),
+    },
+    {
+      title: getPlotDataGroupTitle(moduleKey, "y"),
+      fields: fields.filter((field) => field.id.endsWith("_start") || field.id.endsWith("_stop") || field.id.endsWith("_step")).slice(3),
+    },
+  ];
+}
+
+function getPlotDataGroupTitle(moduleKey: SimulationModuleKey, axis: "x" | "y") {
+  if (moduleKey === "thermo-buckling") {
+    return axis === "x" ? "Temperature" : "Pressure";
+  }
+
+  if (moduleKey === "thermo-fatigue") {
+    return axis === "x" ? "Operational temperature" : "Operational pressure";
+  }
+
+  return axis === "x" ? "Feed-in" : "Lateral displacement";
 }
 
 type DashboardSidebarProps = {
@@ -154,7 +198,7 @@ export function DashboardSidebar({
   const [fieldValues, setFieldValues] = useState<FieldValues>(() => getInitialValues("thermo-buckling", "Table"));
   const selectedModuleConfig = moduleByKey[selectedModule];
   const selectedEntityFields = selectedModuleConfig.parameters as readonly ParameterField[];
-  const selectedQueryFields = queryModeFields[selectedModule][selectedQueryMode] as readonly ParameterField[];
+  const selectedQueryFieldGroups = getQueryFieldGroups(selectedModule, selectedQueryMode);
 
 
   const handleModule = (module: SimulationModuleKey) => {
@@ -268,19 +312,29 @@ export function DashboardSidebar({
           {selectedQueryMode === "Table" ? "XY Pair" : "XY Ranges"}
         </p>
 
-        <div className="grid grid-cols-2 gap-3">
-          {selectedQueryFields.map((parameter) => (
-            <div key={`${selectedModule}-${selectedQueryMode}-${parameter.id}`} className="space-y-1">
-              <Label htmlFor={parameter.id} className="text-xs">
-                {parameter.unit ? `${parameter.label} (${parameter.unit})` : parameter.label}
-              </Label>
-              <Input
-                id={parameter.id}
-                type="number"
-                value={fieldValues[parameter.id] ?? parameter.defaultValue}
-                step={"step" in parameter ? parameter.step : undefined}
-                onChange={(event) => handleFieldValue(parameter.id, event.target.value)}
-              />
+        <div className={selectedQueryMode === "Plot Data" ? "grid grid-cols-2 gap-3" : "grid grid-cols-2 gap-3"}>
+          {selectedQueryFieldGroups.map((group) => (
+            <div key={group.title} className={selectedQueryMode === "Plot Data" ? "space-y-3" : "contents"}>
+              {selectedQueryMode === "Plot Data" ? (
+                <p className="text-xs font-semibold text-slate-500">
+                  {group.title}
+                </p>
+              ) : null}
+
+              {group.fields.map((parameter) => (
+                <div key={`${selectedModule}-${selectedQueryMode}-${parameter.id}`} className="space-y-1">
+                  <Label htmlFor={parameter.id} className="text-xs">
+                    {parameter.unit ? `${parameter.label} (${parameter.unit})` : parameter.label}
+                  </Label>
+                  <Input
+                    id={parameter.id}
+                    type="number"
+                    value={fieldValues[parameter.id] ?? parameter.defaultValue}
+                    step={"step" in parameter ? parameter.step : undefined}
+                    onChange={(event) => handleFieldValue(parameter.id, event.target.value)}
+                  />
+                </div>
+              ))}
             </div>
           ))}
         </div>
