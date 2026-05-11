@@ -8,7 +8,7 @@ pipeapi_plot_data_url = "https://dev.subweb.com.br/app/pipeapi/api/thermo-fatigu
 def get_thermo_fatigue_table(payload: ThermoFatigueTable):
     response = requests.post(
         pipeapi_table_url,
-        json=payload.model_dump(), #converte modelo pydantic para dicionario python
+        json = payload.model_dump(), #converte modelo pydantic para dicionario python
         timeout=30,
     )
 
@@ -17,7 +17,7 @@ def get_thermo_fatigue_table(payload: ThermoFatigueTable):
 def get_thermo_fatigue_plot_data(payload: ThermoFatiguePlotData):
     response = requests.post(
         pipeapi_plot_data_url,
-        json=payload.model_dump(),
+        json = payload.model_dump(),
         timeout=30
     )
 

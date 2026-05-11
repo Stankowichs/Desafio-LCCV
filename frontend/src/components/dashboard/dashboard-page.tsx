@@ -1,16 +1,42 @@
 "use client"
 
+import { useState } from "react";
+
 import { DashboardSidebar } from "./dashboard-sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { StressLineChart } from "@/components/charts/line-chart";
 import { OutputBarChart } from "@/components/charts/bar-chart";
 import { DashboardTable } from "./dashboard-table";
+import { runSimulation, type SimulationFormValues, type SimulationResult, } from "@/lib/simulation";
 
 export function DashboardPage() {
+  const [simulationResult, setSimulationResult] = useState<SimulationResult | null>(null);
+  const [isSimulationLoading, setIsSimulationLoading] = useState(false);
+  const [simulationError, setSimulationError] = useState<string | null>(null);
+
+  const handleRunSimulation = async (formValues: SimulationFormValues) => {
+    setIsSimulationLoading(true);
+    setSimulationError(null);
+
+    try {
+      const result = await runSimulation(formValues);
+
+      setSimulationResult(result);
+    } catch (error) {
+      setSimulationError(error instanceof Error ? error.message : "Erro ao executar simulacao");
+    } finally {
+      setIsSimulationLoading(false);
+    }
+  };
+
   return (
     <main className="min-h-screen bg-[#F6F8F8] text-slate-900">
       <div className="flex min-h-screen">
-        <DashboardSidebar />
+        <DashboardSidebar
+          errorMessage={simulationError}
+          isLoading={isSimulationLoading}
+          onRunSimulation={handleRunSimulation}
+        />
 
         <section className="flex-1 p-6">
           <header className="mb-6 flex items-center justify-between">
@@ -105,7 +131,7 @@ export function DashboardPage() {
           </div>
 
           <div className="mt-10 grid">
-            <DashboardTable />
+            <DashboardTable result={simulationResult} />
           </div>
 
         </section>

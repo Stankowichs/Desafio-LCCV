@@ -9,7 +9,7 @@ pipeapi_plot_data_url = "https://dev.subweb.com.br/app/pipeapi/api/buckling/plot
 def get_buckling_multiple_points(payload: BucklingParameters):
     response = requests.post(
         pipeapi_multiple_points_url,
-        json=payload.model_dump(), #converte modelo pydantic para dicionario python
+        json = payload.model_dump(), #converte modelo pydantic para dicionario python
         timeout=30,
     )
 
@@ -19,7 +19,7 @@ def get_buckling_multiple_points(payload: BucklingParameters):
 def get_buckling_table(payload: BucklingTable):
     response = requests.post(
         pipeapi_table_url,
-        json=payload.model_dump(),
+        json = payload.model_dump(),
         timeout=30,
     )
 
@@ -29,7 +29,7 @@ def get_buckling_table(payload: BucklingTable):
 def get_buckling_plot_data(payload: BucklingPlotData):
     response = requests.post(
         pipeapi_plot_data_url,
-        json=payload.model_dump(),
+        json = payload.model_dump(),
         timeout=30,
     )
 

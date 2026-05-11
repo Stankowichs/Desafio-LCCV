@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import type { FieldValues, QueryMode, SimulationFormValues, SimulationModuleKey } from "@/lib/simulation";
 
 const simulationModules = [
   {
@@ -58,25 +59,117 @@ const simulationModules = [
   },
 ] as const;
 
-type SimulationModuleKey = (typeof simulationModules)[number]["key"];
-
 const moduleByKey = Object.fromEntries(
   simulationModules.map((module) => [module.key, module]),
 ) as Record<SimulationModuleKey, (typeof simulationModules)[number]>;
 
+const queryModeFields = {
+  "thermo-buckling": {
+    Table: [
+      { id: "temperature", label: "temperature", unit: "C", defaultValue: 20 },
+      { id: "pressure", label: "pressure", unit: "MPa", defaultValue: 20 },
+    ],
+    "Plot Data": [
+      { id: "temperature_range_start", label: "temperature start", unit: "C", defaultValue: 30 },
+      { id: "temperature_range_stop", label: "temperature stop", unit: "C", defaultValue: 90 },
+      { id: "temperature_range_step", label: "temperature step", unit: "C", defaultValue: 10 },
+      { id: "pressure_range_start", label: "pressure start", unit: "MPa", defaultValue: 30 },
+      { id: "pressure_range_stop", label: "pressure stop", unit: "MPa", defaultValue: 60 },
+      { id: "pressure_range_step", label: "pressure step", unit: "MPa", defaultValue: 10 },
+    ],
+  },
+  "thermo-fatigue": {
+    Table: [
+      { id: "t_operational", label: "t_operational", unit: "C", defaultValue: 20 },
+      { id: "p_operational", label: "p_operational", unit: "MPa", defaultValue: 20 },
+    ],
+    "Plot Data": [
+      { id: "t_operational_range_start", label: "t_operational start", unit: "C", defaultValue: 30 },
+      { id: "t_operational_range_stop", label: "t_operational stop", unit: "C", defaultValue: 90 },
+      { id: "t_operational_range_step", label: "t_operational step", unit: "C", defaultValue: 10 },
+      { id: "p_operational_range_start", label: "p_operational start", unit: "MPa", defaultValue: 30 },
+      { id: "p_operational_range_stop", label: "p_operational stop", unit: "MPa", defaultValue: 60 },
+      { id: "p_operational_range_step", label: "p_operational step", unit: "MPa", defaultValue: 10 },
+    ],
+  },
+  buckling: {
+    Table: [
+      { id: "u_lateral", label: "u_lateral", unit: "m", defaultValue: 0.5, step: 0.1 },
+      { id: "feed_in", label: "feed_in", unit: "m", defaultValue: 0.1, step: 0.1 },
+    ],
+    "Plot Data": [
+      { id: "u_lateral_range_start", label: "u_lateral start", unit: "m", defaultValue: 0.5, step: 0.1 },
+      { id: "u_lateral_range_stop", label: "u_lateral stop", unit: "m", defaultValue: 2, step: 0.1 },
+      { id: "u_lateral_range_step", label: "u_lateral step", unit: "m", defaultValue: 0.1, step: 0.1 },
+      { id: "feed_in_range_start", label: "feed_in start", unit: "m", defaultValue: 0.1, step: 0.1 },
+      { id: "feed_in_range_stop", label: "feed_in stop", unit: "m", defaultValue: 4, step: 0.1 },
+      { id: "feed_in_range_step", label: "feed_in step", unit: "m", defaultValue: 0.1, step: 0.1 },
+    ],
+  },
+} as const satisfies Record<SimulationModuleKey, Record<QueryMode, readonly ParameterField[]>>;
 
-export function DashboardSidebar() {
+type ParameterField = {
+  id: string;
+  label: string;
+  unit?: string;
+  defaultValue: number;
+  step?: number;
+};
+
+const queryModes = ["Table", "Plot Data"] as const;
+
+function getInitialValues(moduleKey: SimulationModuleKey, queryMode: QueryMode): FieldValues {
+  const values: FieldValues = {};
+
+  for (const parameter of moduleByKey[moduleKey].parameters) {
+    values[parameter.id] = parameter.defaultValue;
+  }
+
+  for (const parameter of queryModeFields[moduleKey][queryMode]) {
+    values[parameter.id] = parameter.defaultValue;
+  }
+
+  return values;
+}
+
+type DashboardSidebarProps = {
+  isLoading: boolean;
+  errorMessage: string | null;
+  onRunSimulation: (formValues: SimulationFormValues) => void;
+};
+
+export function DashboardSidebar({ isLoading, errorMessage, onRunSimulation }: DashboardSidebarProps) {
   const [selectedModule, setSelectedModule] = useState<SimulationModuleKey>('thermo-buckling');
-  const [selectedQueryMode, setSelectedQueryMode] = useState('Table');
+  const [selectedQueryMode, setSelectedQueryMode] = useState<QueryMode>('Table');
+  const [fieldValues, setFieldValues] = useState<FieldValues>(() => getInitialValues("thermo-buckling", "Table"));
   const selectedModuleConfig = moduleByKey[selectedModule];
+  const selectedEntityFields = selectedModuleConfig.parameters as readonly ParameterField[];
+  const selectedQueryFields = queryModeFields[selectedModule][selectedQueryMode] as readonly ParameterField[];
 
 
   const handleModule = (module: SimulationModuleKey) => {
     setSelectedModule(module)
+    setFieldValues(getInitialValues(module, selectedQueryMode))
   }
 
-  const handleQueryMode = (module: string) => {
-    setSelectedQueryMode(module)
+  const handleQueryMode = (queryMode: QueryMode) => {
+    setSelectedQueryMode(queryMode)
+    setFieldValues(getInitialValues(selectedModule, queryMode))
+  }
+
+  const handleFieldValue = (field: string, value: string) => {
+    setFieldValues((currentValues) => ({
+      ...currentValues,
+      [field]: Number(value),
+    }));
+  }
+
+  const handleRunSimulation = () => {
+    onRunSimulation({
+      module: selectedModule,
+      queryMode: selectedQueryMode,
+      values: fieldValues,
+    });
   }
 
   return (
@@ -115,36 +208,19 @@ export function DashboardSidebar() {
         </p>
 
         <div className="grid grid-cols-1 gap-2">
-          <Button
-            variant={selectedQueryMode === "Table" ? undefined : "ghost"}
-            className={selectedQueryMode === "Table"
-              ? "justify-start bg-[#0D5C63] hover:bg-[#004F55]"
-              : "justify-start"
-            }
-            onClick={() => handleQueryMode('Table')}
-          >
-            Table
-          </Button>
-          <Button
-            variant={selectedQueryMode === "Plot Data" ? undefined : "ghost"}
-            className={selectedQueryMode === "Plot Data"
-              ? "justify-start bg-[#0D5C63] hover:bg-[#004F55]"
-              : "justify-start"
-            }
-            onClick={() => handleQueryMode('Plot Data')}
-          >
-            Plot Data
-          </Button>
-          <Button
-            variant={selectedQueryMode === "Multiple Points" ? undefined : "ghost"}
-            className={selectedQueryMode === "Multiple Points"
-              ? "justify-start bg-[#0D5C63] hover:bg-[#004F55]"
-              : "justify-start"
-            }
-            onClick={() => handleQueryMode('Multiple Points')}
-          >
-            Multiple Points
-          </Button>
+          {queryModes.map((queryMode) => (
+            <Button
+              key={queryMode}
+              variant={selectedQueryMode === queryMode ? undefined : "ghost"}
+              className={selectedQueryMode === queryMode
+                ? "justify-start bg-[#0D5C63] hover:bg-[#004F55]"
+                : "justify-start"
+              }
+              onClick={() => handleQueryMode(queryMode)}
+            >
+              {queryMode}
+            </Button>
+          ))}
         </div>
       </div>
 
@@ -156,7 +232,7 @@ export function DashboardSidebar() {
         </p>
 
         <div className="grid grid-cols-2 gap-3">
-          {selectedModuleConfig.parameters.map((parameter) => (
+          {selectedEntityFields.map((parameter) => (
             <div key={`${selectedModule}-${parameter.id}`} className="space-y-1">
               <Label htmlFor={parameter.id} className="text-xs">
                 {"unit" in parameter && parameter.unit
@@ -166,8 +242,34 @@ export function DashboardSidebar() {
               <Input
                 id={parameter.id}
                 type="number"
-                defaultValue={parameter.defaultValue}
+                value={fieldValues[parameter.id] ?? parameter.defaultValue}
                 step={"step" in parameter ? parameter.step : undefined}
+                onChange={(event) => handleFieldValue(parameter.id, event.target.value)}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <Separator className="my-5" />
+
+      <div className="space-y-4">
+        <p className="text-xs font-semibold uppercase text-slate-400">
+          {selectedQueryMode === "Table" ? "XY Pair" : "XY Ranges"}
+        </p>
+
+        <div className="grid grid-cols-2 gap-3">
+          {selectedQueryFields.map((parameter) => (
+            <div key={`${selectedModule}-${selectedQueryMode}-${parameter.id}`} className="space-y-1">
+              <Label htmlFor={parameter.id} className="text-xs">
+                {parameter.unit ? `${parameter.label} (${parameter.unit})` : parameter.label}
+              </Label>
+              <Input
+                id={parameter.id}
+                type="number"
+                value={fieldValues[parameter.id] ?? parameter.defaultValue}
+                step={"step" in parameter ? parameter.step : undefined}
+                onChange={(event) => handleFieldValue(parameter.id, event.target.value)}
               />
             </div>
           ))}
@@ -175,14 +277,26 @@ export function DashboardSidebar() {
       </div>
 
       <div className="mt-6 space-y-2">
-        <Button className="w-full bg-[#0D5C63] hover:bg-[#0b4f55]">
-          Run Simulation
+        <Button
+          className="w-full bg-[#0D5C63] hover:bg-[#0b4f55]"
+          disabled={isLoading}
+          onClick={handleRunSimulation}
+        >
+          {isLoading ? "Running..." : "Run Simulation"}
         </Button>
-        <Button variant="secondary" className="w-full">
+        <Button
+          variant="secondary"
+          className="w-full"
+          onClick={() => setFieldValues(getInitialValues(selectedModule, selectedQueryMode))}
+        >
           Reset Parameters
         </Button>
+        {errorMessage ? (
+          <p className="text-xs font-medium text-red-600">
+            {errorMessage}
+          </p>
+        ) : null}
       </div>
     </aside>
   );
 }
-

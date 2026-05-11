@@ -1,51 +1,89 @@
-import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 
-const simulationRows = [
-  {
-    point: "N-001",
-    temperature: "20",
-    pressure: "12.00",
-    axialForce: "0",
-    axialStress: "118.23",
-    status: "OK",
-  },
-  {
-    point: "N-002",
-    temperature: "100",
-    pressure: "12.00",
-    axialForce: "500",
-    axialStress: "154.67",
-    status: "OK",
-  },
-  {
-    point: "N-003",
-    temperature: "200",
-    pressure: "12.00",
-    axialForce: "1000",
-    axialStress: "203.44",
-    status: "OK",
-  },
-  {
-    point: "N-004",
-    temperature: "300",
-    pressure: "12.00",
-    axialForce: "1500",
-    axialStress: "249.81",
-    status: "Caution",
-  },
-  {
-    point: "N-005",
-    temperature: "400",
-    pressure: "12.00",
-    axialForce: "1800",
-    axialStress: "288.76",
-    status: "OK",
-  },
-]
+type SimulationResult = {
+  module: string;
+  queryMode: string;
+  payload: unknown;
+  data: unknown;
+};
 
-export function DashboardTable() {
+type DashboardTableProps = {
+  result: SimulationResult | null;
+};
+
+type TableRowData = Record<string, unknown>;
+
+function getRows(data: unknown): TableRowData[] {
+  if (Array.isArray(data)) {
+    return data.map((item, index) => normalizeRow(item, index));
+  }
+
+  if (isRecord(data)) {
+    const entries = Object.entries(data);
+    const arrayEntries = entries.filter((entry): entry is [string, unknown[]] => Array.isArray(entry[1]));
+
+    if (arrayEntries.length === entries.length && arrayEntries.length > 0) {
+      const rowCount = Math.max(...arrayEntries.map(([, values]) => values.length));
+
+      return Array.from({ length: rowCount }, (_, index) => {
+        const row: TableRowData = {};
+
+        for (const [key, values] of arrayEntries) {
+          row[key] = values[index];
+        }
+
+        return row;
+      });
+    }
+
+    const firstArray = arrayEntries[0]?.[1];
+
+    if (firstArray) {
+      return firstArray.map((item, index) => normalizeRow(item, index));
+    }
+
+    return [data];
+  }
+
+  return [];
+}
+
+function normalizeRow(item: unknown, index: number): TableRowData {
+  if (isRecord(item)) {
+    return item;
+  }
+
+  return {
+    index: index + 1,
+    value: item,
+  };
+}
+
+function isRecord(value: unknown): value is TableRowData {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function formatValue(value: unknown) {
+  if (typeof value === "number") {
+    return Number.isInteger(value) ? String(value) : value.toFixed(4);
+  }
+
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (value === null || value === undefined) {
+    return "-";
+  }
+
+  return JSON.stringify(value);
+}
+
+export function DashboardTable({ result }: DashboardTableProps) {
+  const rows = result ? getRows(result.data) : [];
+  const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
+
   return (
     <Card className="border-slate-200 bg-white shadow-sm">
       <CardHeader>
@@ -55,56 +93,49 @@ export function DashboardTable() {
       </CardHeader>
 
       <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow className="border-slate-200 bg-slate-50 hover:bg-slate-50">
-              <TableHead className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Point
-              </TableHead>
-              <TableHead className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Temperature (C)
-              </TableHead>
-              <TableHead className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Pressure (MPa)
-              </TableHead>
-              <TableHead className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Axial Force (kN)
-              </TableHead>
-              <TableHead className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Axial Stress (MPa)
-              </TableHead>
-              <TableHead className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Status
-              </TableHead>
-            </TableRow>
-          </TableHeader>
+        {result ? (
+          <div className="space-y-4">
+            <p className="text-sm text-slate-500">
+              {result.module} - {result.queryMode}
+            </p>
 
-          <TableBody>
-            {simulationRows.map((row) => (
-              <TableRow key={row.point} className="border-slate-100">
-                <TableCell className="font-medium text-slate-800">
-                  {row.point}
-                </TableCell>
-                <TableCell className="text-slate-600">{row.temperature}</TableCell>
-                <TableCell className="text-slate-600">{row.pressure}</TableCell>
-                <TableCell className="text-slate-600">{row.axialForce}</TableCell>
-                <TableCell className="text-slate-600">{row.axialStress}</TableCell>
-                <TableCell>
-                  <Badge
-                    variant="outline"
-                    className={
-                      row.status === "OK"
-                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                        : "border-amber-200 bg-amber-50 text-amber-700"
-                    }
-                  >
-                    {row.status}
-                  </Badge>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            {rows.length > 0 ? (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="border-slate-200 bg-slate-50 hover:bg-slate-50">
+                      {columns.map((column) => (
+                        <TableHead key={column} className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                          {column}
+                        </TableHead>
+                      ))}
+                    </TableRow>
+                  </TableHeader>
+
+                  <TableBody>
+                    {rows.map((row, index) => (
+                      <TableRow key={index} className="border-slate-100">
+                        {columns.map((column) => (
+                          <TableCell key={column} className="max-w-[280px] truncate text-slate-600">
+                            {formatValue(row[column])}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <pre className="overflow-x-auto rounded-md bg-slate-950 p-4 text-xs text-slate-100">
+                {JSON.stringify(result.data, null, 2)}
+              </pre>
+            )}
+          </div>
+        ) : (
+          <p className="text-sm text-slate-500">
+            Run a simulation to show backend results here.
+          </p>
+        )}
       </CardContent>
     </Card>
   )
