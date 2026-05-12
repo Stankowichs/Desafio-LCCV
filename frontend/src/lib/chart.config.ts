@@ -310,11 +310,7 @@ export function getDefaultChartSelection(module: SimulationModuleKey, queryMode:
   return chartConfig[module].defaults[queryMode];
 }
 
-export function buildLineChartModel(
-  results: SavedSimulationResult[],
-  module: SimulationModuleKey,
-  queryMode: QueryMode,
-): LineChartModel {
+export function buildLineChartModel( results: SavedSimulationResult[], module: SimulationModuleKey, queryMode: QueryMode, ): LineChartModel {
   const config = getChartConfig(module);
   const selection = getDefaultChartSelection(module, queryMode);
   const xAxis = getAxisOption(config.xAxisOptions, selection.xAxis);
